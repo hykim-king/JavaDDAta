@@ -6,79 +6,79 @@ import java.util.List;
 
 public class MemberDao {
 
-	private final String filePath = "D:\\ACON_20250916\\01_JAVA\\workspace\\final_1\\data\\member.txt";
+    private final String filePath = "D:\\ACON_20250916\\01_JAVA\\workspace\\mini_final\\data\\member.txt";
+    private List<MemberDTO> members = new ArrayList<>();
 
     public MemberDao() {
         File file = new File(filePath);
         try {
             file.getParentFile().mkdirs(); // 폴더 자동 생성
-            if (!file.exists()) {
-                file.createNewFile();      // 파일 없으면 생성
-            }
+            if (!file.exists()) file.createNewFile();
         } catch (IOException e) {
             System.out.println("회원 파일 생성 실패: " + e.getMessage());
         }
+        loadAllMembers(); // 기존 회원 불러오기
     }
 
-    // 1. 회원 등록
+    // 회원 등록
     public void saveMember(MemberDTO member) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath, true))) {
-            bw.write(member.toString());
-            bw.newLine();
-        } catch (IOException e) {
-            System.out.println("회원 저장 중 오류 발생: " + e.getMessage());
-        }
+        members.add(member);
+        saveAllMembers();
     }
 
-    // 2. 이메일로 회원 한 명 조회
+    // 이메일로 회원 조회
     public MemberDTO findByEmail(String email) {
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(",");
-                if (data[0].equals(email)) {
-                    return new MemberDTO(data[0], data[1], data[2]);
-                }
-            }
-        } catch (IOException e) {
-            System.out.println("회원 조회 중 오류 발생: " + e.getMessage());
+        for (MemberDTO m : members) {
+            if (m.getEmail().equals(email)) return m;
         }
         return null;
     }
 
-    // 3. 이메일로 회원 삭제
+    // 이메일로 회원 삭제
     public boolean deleteMember(String email) {
-        File inputFile = new File(filePath);
-        File tempFile = new File("data/temp_member.txt");
-
         boolean deleted = false;
+        List<MemberDTO> newList = new ArrayList<>();
+        for (MemberDTO m : members) {
+            if (m.getEmail().equals(email)) {
+                deleted = true;
+                continue;
+            }
+            newList.add(m);
+        }
+        members = newList;
+        if (deleted) saveAllMembers();
+        return deleted;
+    }
 
-        try (BufferedReader br = new BufferedReader(new FileReader(inputFile));
-             BufferedWriter bw = new BufferedWriter(new FileWriter(tempFile))) {
-
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] data = line.split(",");
-                if (data[0].equals(email)) {
-                    deleted = true; // 삭제할 회원 발견
-                    continue;       // 해당 줄은 기록하지 않음
-                }
-                bw.write(line);
+    // 전체 회원 + Pocket 저장
+    public void saveAllMembers() {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(filePath))) {
+            for (MemberDTO m : members) {
+                bw.write(m.toString());
                 bw.newLine();
             }
         } catch (IOException e) {
-            System.out.println("회원 삭제 중 오류 발생: " + e.getMessage());
-            return false;
+            System.out.println("회원 전체 저장 중 오류: " + e.getMessage());
         }
+    }
 
-        // 기존 파일 삭제 후 임시 파일 이름 변경
-        if (deleted) {
-            inputFile.delete();
-            tempFile.renameTo(inputFile);
-        } else {
-            tempFile.delete(); // 삭제된 회원 없으면 임시 파일 삭제
+    // 파일에서 전체 회원 로드
+    public void loadAllMembers() {
+        members.clear();
+        File file = new File(filePath);
+        if (!file.exists()) return;
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                MemberDTO m = MemberDTO.fromString(line);
+                if (m != null) members.add(m);
+            }
+        } catch (IOException e) {
+            System.out.println("회원 전체 불러오기 오류: " + e.getMessage());
         }
+    }
 
-        return deleted;
+    public List<MemberDTO> getMembers() {
+        return members;
     }
 }
